@@ -12,7 +12,7 @@ def summary(year:str|None=None,status:str|None=None,project_type:str|None=None,l
 @router.get('/projects-by-year')
 def by_year(year:str|None=None,status:str|None=None,project_type:str|None=None,location:str|None=None,agency:str|None=None,search:str|None=None,user=Depends(current_user)):
     w,p=run_filter(year,status,project_type,location,agency,search)
-    with pool.connection() as c:return [dict(r) for r in c.execute(f'''select extract(year from start_date)::int year,count(*) total_projects,count(*) filter(where status='COMPLETED') completed_projects from public.projects p where {w} group by 1 order by 1''',p).fetchall()]
+    with pool.connection() as c:return [dict(r) for r in c.execute(f'''select extract(year from start_date)::int as year,count(*) total_projects,count(*) filter(where status='COMPLETED') completed_projects from public.projects p where {w} group by 1 order by 1''',p).fetchall()]
 @router.get('/projects-by-status')
 def by_status(year:str|None=None,status:str|None=None,project_type:str|None=None,location:str|None=None,agency:str|None=None,search:str|None=None,user=Depends(current_user)):
     w,p=run_filter(year,status,project_type,location,agency,search)

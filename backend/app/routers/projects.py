@@ -48,10 +48,10 @@ def write_project(data,project_id=None,user_id=None):
     if project_id:
         sets=[];params=[]
         for k,v in vals.items():sets.append(f'{k}=%s');params.append(v)
-        sets += ['geometry=case when %s is null then null else ST_SetSRID(ST_GeomFromGeoJSON(%s),4326) end','updated_by=%s','updated_at=now()'];params += [json.dumps(g) if g is not None else None,json.dumps(g) if g is not None else None,user_id,project_id]
+        sets += ['geometry=case when %s::text is null then null else ST_SetSRID(ST_GeomFromGeoJSON(%s::text),4326) end','updated_by=%s','updated_at=now()'];params += [json.dumps(g) if g is not None else None,json.dumps(g) if g is not None else None,user_id,project_id]
         with pool.connection() as c:c.execute(f'update public.projects set {", ".join(sets)} where id=%s',params);c.commit()
         return get_project(project_id,user=None)
-    cols=list(vals.keys())+['geometry','created_by','updated_by'];place=['%s']*len(vals)+['case when %s is null then null else ST_SetSRID(ST_GeomFromGeoJSON(%s),4326) end','%s','%s'];params=list(vals.values())+[json.dumps(g) if g is not None else None,json.dumps(g) if g is not None else None,user_id,user_id]
+    cols=list(vals.keys())+['geometry','created_by','updated_by'];place=['%s']*len(vals)+['case when %s::text is null then null else ST_SetSRID(ST_GeomFromGeoJSON(%s::text),4326) end','%s','%s'];params=list(vals.values())+[json.dumps(g) if g is not None else None,json.dumps(g) if g is not None else None,user_id,user_id]
     with pool.connection() as c:
         r=c.execute(f'insert into public.projects ({", ".join(cols)}) values ({", ".join(place)}) returning id',params).fetchone();c.commit();pid=r['id']
     return get_project(pid,user=None)
