@@ -1,0 +1,29 @@
+import {useEffect,useRef,useState} from 'react';
+import maplibregl,{GeoJSONSource,Map} from 'maplibre-gl';
+import type {Geometry,Project} from '../types';
+
+const colors:Record<string,string>={COMPLETED:'#2e8b57',ONGOING:'#2878c8',PENDING:'#7c8790',DELAYED:'#c0392b',SUSPENDED:'#d9822b'};
+function featureCollection(projects:Project[]){return {type:'FeatureCollection',features:projects.filter(p=>p.geometry).map(p=>({type:'Feature',id:p.id,properties:{id:p.id,name:p.project_name,code:p.project_code,status:p.status,completion:p.completion_percentage,budget:p.budget,location:p.location_name,target:p.target_end_date},geometry:p.geometry}))} as any;}
+
+export function ProjectMap({projects,selectedId,onSelect,editable=false,value,onChange}:{projects:Project[];selectedId?:string|null;onSelect?:(p:Project)=>void;editable?:boolean;value?:Geometry|null;onChange?:(g:Geometry|null)=>void}){
+ const ref=useRef<HTMLDivElement>(null);const mapRef=useRef<Map|null>(null);const [mode,setMode]=useState<'Point'|'LineString'|'Polygon'|null>(null);const coords=useRef<any[]>([]);
+ useEffect(()=>{
+  if(!ref.current)return;
+  const map=new maplibregl.Map({container:ref.current,style:import.meta.env.VITE_MAP_STYLE_URL||'https://demotiles.maplibre.org/style.json',center:[121.05,14.65],zoom:10});
+  map.addControl(new maplibregl.NavigationControl(),'top-right');map.doubleClickZoom.disable();
+  map.on('load',()=>{
+   map.addSource('projects',{type:'geojson',data:featureCollection(projects)});
+   map.addLayer({id:'project-fill',type:'fill',source:'projects',filter:['==',['geometry-type'],'Polygon'],paint:{'fill-color':['match',['get','status'],'COMPLETED',colors.COMPLETED,'ONGOING',colors.ONGOING,'PENDING',colors.PENDING,'DELAYED',colors.DELAYED,'SUSPENDED',colors.SUSPENDED,'#6b7280'],'fill-opacity':.35}});
+   map.addLayer({id:'project-line',type:'line',source:'projects',filter:['any',['==',['geometry-type'],'LineString'],['==',['geometry-type'],'Polygon']],paint:{'line-color':['match',['get','status'],'COMPLETED',colors.COMPLETED,'ONGOING',colors.ONGOING,'PENDING',colors.PENDING,'DELAYED',colors.DELAYED,'SUSPENDED',colors.SUSPENDED,'#6b7280'],'line-width':3}});
+   map.addLayer({id:'project-point',type:'circle',source:'projects',filter:['==',['geometry-type'],'Point'],paint:{'circle-radius':7,'circle-color':['match',['get','status'],'COMPLETED',colors.COMPLETED,'ONGOING',colors.ONGOING,'PENDING',colors.PENDING,'DELAYED',colors.DELAYED,'SUSPENDED',colors.SUSPENDED,'#6b7280'],'circle-stroke-color':'#fff','circle-stroke-width':2}});
+   map.on('click',['project-fill','project-line','project-point'],e=>{const id=e.features?.[0]?.properties?.id;const p=projects.find(x=>x.id===id);if(p)onSelect?.(p);});
+   map.on('click',e=>{if(!editable||!mode)return;const c=[e.lngLat.lng,e.lngLat.lat];if(mode==='Point'){coords.current=[c];onChange?.({type:'Point',coordinates:c});setMode(null);return;}coords.current=[...coords.current,c];const c2=coords.current;onChange?.({type:mode,coordinates:mode==='Polygon'?[c2]:c2});});
+   map.on('dblclick',e=>{if(!editable||!mode||mode==='Point')return;e.preventDefault();if(coords.current.length<(mode==='Polygon'?3:2))return;const c=[...coords.current];if(mode==='Polygon')c.push(c[0]);onChange?.({type:mode,coordinates:mode==='Polygon'?[c]:c});setMode(null);});
+   if(value){const data={type:'Feature',properties:{},geometry:value} as any;map.addSource('edit',{type:'geojson',data});map.addLayer({id:'edit-fill',type:'fill',source:'edit',filter:['==',['geometry-type'],'Polygon'],paint:{'fill-color':'#1d7a50','fill-opacity':.18}});map.addLayer({id:'edit-line',type:'line',source:'edit',paint:{'line-color':'#1d7a50','line-width':4}});map.addLayer({id:'edit-point',type:'circle',source:'edit',filter:['==',['geometry-type'],'Point'],paint:{'circle-color':'#1d7a50','circle-radius':7}});}
+  });
+  mapRef.current=map;return()=>map.remove();
+ },[]);
+ useEffect(()=>{const map=mapRef.current;if(!map||!map.isStyleLoaded())return;const source=map.getSource('projects') as GeoJSONSource|undefined;source?.setData(featureCollection(projects));if(!selectedId)return;const p=projects.find(x=>x.id===selectedId);if(!p?.geometry)return;const g:any=p.geometry;if(g.type==='Point'){map.easeTo({center:g.coordinates,zoom:15});return;}const pts=g.type==='LineString'?g.coordinates:g.coordinates[0];const lngs=pts.map((x:any)=>x[0]),lats=pts.map((x:any)=>x[1]);map.fitBounds([[Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]],{padding:60,maxZoom:15});},[projects,selectedId]);
+ useEffect(()=>{const map=mapRef.current;if(!map||!map.isStyleLoaded()||!value)return;const source=map.getSource('edit') as GeoJSONSource|undefined;if(source){source.setData({type:'Feature',properties:{},geometry:value} as any);return;}},[value]);
+ return <div><div ref={ref} className="map"/><div className="legend"><span><i className="dot" style={{background:colors.COMPLETED}}/>Completed</span><span><i className="dot" style={{background:colors.ONGOING}}/>Ongoing</span><span><i className="dot" style={{background:colors.PENDING}}/>Pending</span><span><i className="dot" style={{background:colors.DELAYED}}/>Delayed</span><span><i className="dot" style={{background:colors.SUSPENDED}}/>Suspended</span></div>{editable&&<div className="draw-tools"><button className="btn" onClick={()=>{coords.current=[];setMode('Point');}}>Draw Point</button><button className="btn" onClick={()=>{coords.current=[];setMode('LineString');}}>Draw Line</button><button className="btn" onClick={()=>{coords.current=[];setMode('Polygon');}}>Draw Polygon</button><button className="btn" onClick={()=>{coords.current=[];setMode(null);onChange?.(null);}}>Clear</button><span className="muted small">{mode?`Drawing ${mode}. Double-click to finish.`:'Select a geometry tool.'}</span></div>}</div>;
+}

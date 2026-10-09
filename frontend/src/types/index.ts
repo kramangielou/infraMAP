@@ -1,0 +1,10 @@
+export type Role='ADMIN'|'VIEWER';
+export type Status='PENDING'|'ONGOING'|'COMPLETED'|'DELAYED'|'SUSPENDED';
+export type GeometryType='Point'|'LineString'|'Polygon';
+export type Geometry={type:GeometryType;coordinates:any};
+export interface Profile{id:string;full_name:string|null;role:Role}
+export interface Project{id:string;project_code:string;project_name:string;description:string|null;project_type:string;sector:string;status:Status;completion_percentage:number;budget:number;contract_amount:number|null;funding_source:string|null;contractor:string|null;contract_reference:string|null;implementing_agency:string|null;location_name:string|null;barangay:string|null;city:string|null;province:string|null;start_date:string|null;target_end_date:string|null;actual_completion_date:string|null;created_at:string;updated_at:string;geometry:Geometry|null;}
+export interface ProgressMedia{id:string;project_id:string;progress_id:string;file_name:string;file_path:string;file_type:string;file_size:number;caption:string|null;taken_at:string|null;uploaded_by:string;created_at:string;public_url?:string}
+export interface ProgressUpdate{id:string;project_id:string;progress_percentage:number;progress_date:string;remarks:string|null;recorded_by:string;created_at:string;media:ProgressMedia[]}
+export interface DashboardSummary{total_projects:number;completed_projects:number;ongoing_projects:number;pending_projects:number;delayed_projects:number;suspended_projects:number;total_budget:number;average_completion:number;completion_rate:number;projects_due_soon:number;projects_overdue:number}
+export interface Filters{year?:string;status?:string;project_type?:string;location?:string;agency?:string;search?:string}

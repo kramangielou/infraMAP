@@ -1,0 +1,3 @@
+export type ScheduleStatus='On Track'|'At Risk'|'Delayed'|'Insufficient Data';
+export function expectedProgress(start:string|null,end:string|null,now=new Date()){if(!start||!end)return null;const s=new Date(start).getTime(),e=new Date(end).getTime(),n=now.getTime();if(e<=s)return n>=e?100:0;return Math.max(0,Math.min(100,((n-s)/(e-s))*100))}
+export function calculateScheduleStatus(progress:number,start:string|null,end:string|null,threshold=15,now=new Date()):ScheduleStatus{const exp=expectedProgress(start,end,now);if(exp===null)return 'Insufficient Data';if(now.getTime()>new Date(end!).getTime()&&progress<100)return 'Delayed';if(progress+threshold<exp)return 'At Risk';return 'On Track'}
